@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>方方收藏</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { padding: 20px max(16px, env(safe-area-inset-left)) 40px max(16px, env(safe-area-inset-right)); }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+  h1 { margin: 0; font-size: 1.7rem; }
+  h1 small { font-size: .95rem; color: var(--muted); margin-left: 8px; }
+  .box { background: var(--fn); border: 2px solid var(--fn-edge); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+  .lab { font-size: .82rem; font-weight: 700; color: var(--muted); margin-right: 4px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  textarea { width: 100%; min-height: 70px; background: var(--bg); border: 2px solid var(--fn-edge); border-radius: 12px; padding: 8px 10px; font-size: .9rem; }
+  details summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: var(--muted); }
+  #list { display: flex; flex-direction: column; gap: 10px; }
+  .empty { color: var(--muted); padding: 6px 4px; }
+  .seg { max-width: 300px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>方方<small>收藏的詞（<span id="count">0</span>）</small></h1>
+  <div class="box">
+    <div class="row">
+      <span class="lab">羅馬字</span>
+      <div class="seg" id="rom"><button type="button" data-rom="lat">皓羅</button><button type="button" data-rom="tl">台羅</button><button type="button" data-rom="poj">白話字</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">CSV</span>
+      <button class="btn go" id="csv-download" type="button">下載 CSV</button>
+      <button class="btn" id="csv-copy" type="button">複製 CSV</button>
+      <button class="btn quiet" id="clear" type="button">全部清除</button>
+    </div>
+    <div class="row">
+      <span class="lab">和網站或其他裝置同步</span>
+      <button class="btn" id="bk-export" type="button">匯出備份</button>
+      <label class="btn" for="bk-file">匯入備份</label>
+      <input class="sr" type="file" id="bk-file" accept=".json,application/json,text/plain">
+      <span id="msg" class="note" aria-live="polite"></span>
+    </div>
+    <details>
+      <summary>無法存檔時：用文字複製／貼上備份</summary>
+      <textarea id="bk-text" spellcheck="false" placeholder="貼上從網站或其他裝置複製的備份文字"></textarea>
+      <div class="row"><button class="btn" id="bk-copy" type="button">複製備份文字</button><button class="btn" id="bk-paste" type="button">匯入貼上的文字</button></div>
+    </details>
+    <p class="note">CSV 每個釋義一行，用分號（;）分隔：詞、皓羅、詞性、釋義、例句、例句皓羅、例句華語、詞目音檔、例句音檔。備份檔和方方網站的格式相同，可以互相匯入。</p>
+  </div>
+  <div id="list"></div>
+</div>
+<script src="saved.js"></script>
+</body>
+</html>

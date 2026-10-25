@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方方</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  body { width: 300px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  @media (max-width: 500px) { body { width: auto; } }
+  h1 { margin: 0; font-size: 1.4rem; }
+  h1 small { font-size: .85rem; color: var(--muted); margin-left: 6px; }
+  .row { display: flex; flex-direction: column; gap: 6px; }
+  .lab { font-size: .8rem; font-weight: 700; color: var(--muted); }
+  .toggle { display: flex; align-items: center; justify-content: space-between; background: var(--fn); border: 2px solid var(--fn-edge); border-radius: 14px; padding: 8px 12px; }
+  .sw { width: 46px; height: 28px; border-radius: 14px; background: var(--fn-edge); border: 0; position: relative; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--glyph); transition: left .15s; }
+  .sw[aria-checked="true"] { background: var(--green-edge); }
+  .sw[aria-checked="true"]::after { left: 21px; }
+  input[type=range] { width: 100%; accent-color: var(--green-edge); }
+  input[type=url] { width: 100%; background: var(--bg); border: 2px solid var(--fn-edge); border-radius: 10px; padding: 6px 10px; font-size: .8rem; }
+</style>
+</head>
+<body>
+  <h1>方方<small>台語查詞</small></h1>
+  <div class="toggle"><span id="on-label">查詞已開啟</span><button class="sw" id="enabled" role="switch" aria-checked="true" aria-label="開啟或關閉查詞"></button></div>
+  <div class="row">
+    <span class="lab">羅馬字</span>
+    <div class="seg" id="rom"><button type="button" data-rom="lat">皓羅</button><button type="button" data-rom="tl">台羅</button><button type="button" data-rom="poj">白話字</button></div>
+  </div>
+  <div class="row">
+    <span class="lab">音量 <span id="vol-n"></span></span>
+    <input type="range" id="volume" min="0" max="100" step="5" aria-label="音量">
+  </div>
+  <button class="btn go" id="open-saved" type="button">收藏的詞（<span id="count">0</span>）</button>
+  <details>
+    <summary class="lab">音檔來源</summary>
+    <p class="note">播放鍵會從這個網站讀取 audio/ 和 leku/ 資料夾。</p>
+    <input type="url" id="audio-base" spellcheck="false">
+  </details>
+  <p class="note">Mac：把滑鼠移到漢字上。iPhone／iPad：拖動頁面上的「方」到文字下面，點一下「方」可以開關。</p>
+  <script src="popup.js"></script>
+</body>
+</html>
