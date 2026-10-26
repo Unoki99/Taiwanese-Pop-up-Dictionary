@@ -1,18 +1,18 @@
-// 方方 core: reading the shared dictionary data (data.json v2) the same way everywhere.
-// A word is identified by its key "漢字\tcodes" (codes = the 通行 reading as anchor syllable codes).
-// place = null for 通行, or 0–9 for one of the 10 places in data.places.
+// \u65b9\u65b9 core: reading the shared dictionary data (data.json v2) the same way everywhere.
+// A word is identified by its key "\u6f22\u5b57\tcodes" (codes = the \u901a\u884c reading as anchor syllable codes).
+// place = null for \u901a\u884c, or 0\u20139 for one of the 10 places in data.places.
 function FangCore(d) {
   const SYL = d.syl, TL = d.tl || {}, PJ = d.pj || {};
   const DIA = d.dia || {}, TOK = d.tok || {}, ALT = d.alt || {};
   const isCode = t => Object.prototype.hasOwnProperty.call(SYL, t);
 
-  // one syllable in a script: lat (皓羅) / tl (台羅) / poj (白話字) / zy (方音)
+  // one syllable in a script: lat (\u7693\u7f85) / tl (\u53f0\u7f85) / poj (\u767d\u8a71\u5b57) / zy (\u65b9\u97f3)
   function syl(c, sys, place) {
     const s = SYL[c];
     if (!s) return c;
     if (sys === "zy") {
-      // with a place chosen, Tâi-lô o is ㄛ (ㄜ is kept for or / er there)
-      return place != null && c.includes("ø") ? s[0].replace("ㄜ", "ㄛ") : s[0];
+      // with a place chosen, T\u00e2i-l\u00f4 o is \u311b (\u311c is kept for or / er there)
+      return place != null && c.includes("\u00f8") ? s[0].replace("\u311c", "\u311b") : s[0];
     }
     if (sys === "tl") return TL[c] ? TL[c][0] : s[1];
     if (sys === "poj") return PJ[c] || s[1];
@@ -62,18 +62,18 @@ function FangCore(d) {
   // a plain codes string (no word key), e.g. an alternative reading
   const codes = (cs, sys, place, tokens) => render(tokens ? tokens.split(" ") : cs.split(" ").filter(Boolean), sys, place);
 
-  // example sentence template "{^code}…"
+  // example sentence template "{^code}\u2026"
   const sentence = (tpl, sys) => tpl.replace(/\{(\^?)([^}]+)\}/g, (m, cap, c) => {
     const s = isCode(c) ? syl(c, sys, null) : c;
     return cap ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   });
 
-  // other readings of a word: alternatives (又 / 俗 / 合 / "/"), plus the 通行 reading when a dialect is shown
+  // other readings of a word: alternatives (\u53c8 / \u4fd7 / \u5408 / "/"), plus the \u901a\u884c reading when a dialect is shown
   function others(key, place) {
     const out = [];
     const main = key.slice(key.indexOf("\t") + 1);
     const shown = codesFor(key, place);
-    if (shown !== main) out.push({ codes: main, label: "通行", tokens: TOK[key] || null });
+    if (shown !== main) out.push({ codes: main, label: "\u901a\u884c", tokens: TOK[key] || null });
     for (const [c, label, tokens] of ALT[key] || []) {
       if (c === shown) continue;
       out.push({ codes: c, label: label || "", tokens: tokens || null });
@@ -85,7 +85,7 @@ function FangCore(d) {
 }
 if (typeof module !== "undefined") module.exports = FangCore;
 
-// 方方 popup dictionary: background script.
+// \u65b9\u65b9 popup dictionary: background script.
 // Holds the dictionary (too big for the page script on iOS), answers lookups,
 // and keeps saved words and settings in extension storage (shared by every tab).
 const api = globalThis.browser || globalThis.chrome;
@@ -108,10 +108,10 @@ function load() {
         maxLen = Math.max(maxLen, Array.from(h).length);
       };
       for (const [h, c] of d.words) add(h, h + "\t" + c);
-      // variant characters (異用字) find the same entries
+      // variant characters (\u7570\u7528\u5b57) find the same entries
       for (const [v, keys] of Object.entries(d.var || {})) for (const k of keys) add(v, k);
-      // single characters: 白 (colloquial) reading first, 文 (literary) last
-      const RANK = { "白": 0, "俗": 1, "": 2, "文": 3 };
+      // single characters: \u767d (colloquial) reading first, \u6587 (literary) last
+      const RANK = { "\u767d": 0, "\u4fd7": 1, "": 2, "\u6587": 3 };
       for (const [h, list] of hanMap) {
         if (Array.from(h).length === 1 && list.length > 1) {
           list.sort((a, b) => RANK[d.reg[a] || ""] - RANK[d.reg[b] || ""]);
@@ -120,11 +120,11 @@ function load() {
       DB = { d, F, hanMap, maxLen: Math.min(maxLen, 12), own: new Set(d.own || []), sub: new Set(d.sub || []) };
       return DB;
     })
-    .catch(e => { loading = null; throw new Error("字典載入失敗：" + (e && e.message || e)); });
+    .catch(e => { loading = null; throw new Error("\u5b57\u5178\u8f09\u5165\u5931\u6557\uff1a" + (e && e.message || e)); });
   return loading;
 }
 
-const TYPE_LABEL = { 1: "臺華共同", 3: "附錄" };
+const TYPE_LABEL = { 1: "\u81fa\u83ef\u5171\u540c", 3: "\u9644\u9304" };
 
 function defCount(db, k) {
   const i = db.d.defs.m[k];
@@ -164,7 +164,7 @@ function entry(db, k, sys, place) {
     type: TYPE_LABEL[d.typ[k]] || "",
     dialect: shown !== k.slice(k.indexOf("\t") + 1) ? d.places[place] : "",
     others: F.others(k, place).map(o => {
-      const pl = o.label === "通行" ? null : place;          // the 通行 reading is shown with 通行 方音
+      const pl = o.label === "\u901a\u884c" ? null : place;          // the \u901a\u884c reading is shown with \u901a\u884c \u65b9\u97f3
       return { label: o.label, rom: F.codes(o.codes, sys, pl, o.tokens), zy: F.codes(o.codes, "zy", pl, o.tokens) };
     }),
     au: d.au[k] != null ? d.au[k] : null,
@@ -203,7 +203,7 @@ async function getAll() {
 }
 const setSaved = saved => api.storage.local.set({ saved });
 
-// "漢字\tcodes" = every meaning; "漢字\tcodes\t2" = only meaning 3 (same format as the website)
+// "\u6f22\u5b57\tcodes" = every meaning; "\u6f22\u5b57\tcodes\t2" = only meaning 3 (same format as the website)
 const savedDefs = (saved, k) => saved.filter(s => s.startsWith(k + "\t") && s.split("\t").length === 3).map(s => +s.split("\t")[2]);
 
 async function toggleWord(k) {
@@ -232,8 +232,8 @@ async function toggleDef(k, i) {
 
 async function mergeBackup(text) {
   let b;
-  try { b = JSON.parse(text); } catch (e) { return { error: "這不是方方的備份檔。" }; }
-  if (!b || b.app !== "fangfang") return { error: "這不是方方的備份檔。" };
+  try { b = JSON.parse(text); } catch (e) { return { error: "\u9019\u4e0d\u662f\u65b9\u65b9\u7684\u5099\u4efd\u6a94\u3002" }; }
+  if (!b || b.app !== "fangfang") return { error: "\u9019\u4e0d\u662f\u65b9\u65b9\u7684\u5099\u4efd\u6a94\u3002" };
   const db = await load();
   const { saved } = await getAll();
   const words = new Map();

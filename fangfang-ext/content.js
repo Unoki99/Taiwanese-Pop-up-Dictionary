@@ -1,5 +1,5 @@
-// 方方 popup dictionary: runs on web pages.
-// Mac: hover over 漢字 to look it up. iPhone/iPad: drag the 方 puck over the text.
+// \u65b9\u65b9 popup dictionary: runs on web pages.
+// Mac: hover over \u6f22\u5b57 to look it up. iPhone/iPad: drag the \u65b9 puck over the text.
 (() => {
 "use strict";
 if (window.__fangfangLoaded) return;
@@ -17,10 +17,10 @@ function send(msg) {
 
 let settings = { enabled: true, rom: "lat", volume: 0.4, audioBase: "https://unoki99.github.io/fangfang/" };
 let saved = [];
-const HAN = /[\p{Script=Han}〇]/u;
+const HAN = /[\p{Script=Han}\u3007]/u;
 const touchMode = matchMedia("(hover: none) and (pointer: coarse)").matches;
 
-// ---------- page-level styles: highlight of the matched characters + the 皓羅 font ----------
+// ---------- page-level styles: highlight of the matched characters + the \u7693\u7f85 font ----------
 const pageStyle = document.createElement("style");
 pageStyle.textContent =
   "::highlight(fangfang){background-color:rgba(241,227,174,.55);color:inherit}" +
@@ -31,7 +31,7 @@ pageStyle.textContent =
 const host = document.createElement("fangfang-popup");
 host.style.cssText = "all:initial;position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;";
 const root = host.attachShadow({ mode: "open" });
-root.innerHTML = "<style>" + STYLES() + "</style><div class='pop' hidden></div><div class='puck' hidden><span>方</span></div>";
+root.innerHTML = "<style>" + STYLES() + "</style><div class='pop' hidden></div><div class='puck' hidden><span>\u65b9</span></div>";
 document.documentElement.append(host);
 const pop = root.querySelector(".pop");
 const puck = root.querySelector(".puck");
@@ -81,7 +81,7 @@ function charAt(x, y) {
   }
   return null;
 }
-// the run of 漢字 starting at a point, possibly across several text nodes
+// the run of \u6f22\u5b57 starting at a point, possibly across several text nodes
 function textFrom(node, offset, max = 14) {
   const parts = [];
   let text = "", count = 0, n = node, o = offset;
@@ -140,11 +140,11 @@ async function lookupAt(x, y, anchor) {
   if (!text) return;
   const id = ++reqId;
   let slow = 0;
-  if (!dictReady) slow = setTimeout(() => { if (id === reqId) notice("字典載入中…", anchor); }, 400);
+  if (!dictReady) slow = setTimeout(() => { if (id === reqId) notice("\u5b57\u5178\u8f09\u5165\u4e2d\u2026", anchor); }, 400);
   const res = await send({ type: "lookup", text, rom: settings.rom, place: settings.place });
   clearTimeout(slow);
   if (id !== reqId) return;
-  if (!res || res.error) { notice("查詞出錯：" + (res ? res.error : "擴充功能沒有回應"), anchor); return; }
+  if (!res || res.error) { notice("\u67e5\u8a5e\u51fa\u932f\uff1a" + (res ? res.error : "\u64f4\u5145\u529f\u80fd\u6c92\u6709\u56de\u61c9"), anchor); return; }
   dictReady = true;
   if (!res.entries || !res.entries.length) { if (!anchor) scheduleHide(); return; }
   cancelHide();
@@ -305,7 +305,7 @@ async function playBytes(url) {
 }
 function playBtn(kind, v, small) {
   const b = el("button", "play" + (small ? " sm" : ""));
-  b.type = "button"; b.innerHTML = PLAY; b.setAttribute("aria-label", "播放");
+  b.type = "button"; b.innerHTML = PLAY; b.setAttribute("aria-label", "\u64ad\u653e");
   b.addEventListener("click", async e => {
     e.stopPropagation();
     stopAudio();
@@ -358,7 +358,7 @@ function syncStar(b) {
   const k = b.dataset.k;
   if (b.dataset.i != null) b.setAttribute("aria-pressed", String(defOn(k, +b.dataset.i)));
   else { const s = wordState(k); b.setAttribute("aria-pressed", s === "all" ? "true" : s === "some" ? "mixed" : "false"); }
-  b.title = b.getAttribute("aria-pressed") === "true" ? "取消收藏" : "收藏";
+  b.title = b.getAttribute("aria-pressed") === "true" ? "\u53d6\u6d88\u6536\u85cf" : "\u6536\u85cf";
 }
 function syncStars() { root.querySelectorAll(".star").forEach(syncStar); }
 
@@ -370,28 +370,28 @@ function entryCard(e, open) {
   const card = el("section", "ent" + (open ? " open" : ""));
   const top = el("div", "top");
   top.append(el("span", "h", e.h), el("span", "rom", e.rom), el("span", "zy", e.zy));
-  if (e.reg) top.append(el("span", "reg reg-" + (e.reg === "白" ? "b" : e.reg === "文" ? "m" : "s"), e.reg));
-  if (e.sub) { const s = el("span", "reg reg-s", "替"); s.title = "替代字：借用來寫這個詞的字"; top.append(s); }
+  if (e.reg) top.append(el("span", "reg reg-" + (e.reg === "\u767d" ? "b" : e.reg === "\u6587" ? "m" : "s"), e.reg));
+  if (e.sub) { const s = el("span", "reg reg-s", "\u66ff"); s.title = "\u66ff\u4ee3\u5b57\uff1a\u501f\u7528\u4f86\u5beb\u9019\u500b\u8a5e\u7684\u5b57"; top.append(s); }
   if (e.type) top.append(el("span", "reg reg-t", e.type));
-  if (e.dialect) top.append(el("span", "reg reg-d", e.dialect.replace(/(偏泉腔|偏漳腔|混合腔)$/, "")));
-  if (e.own) top.append(el("span", "reg reg-own", "自補"));
+  if (e.dialect) top.append(el("span", "reg reg-d", e.dialect.replace(/(\u504f\u6cc9\u8154|\u504f\u6f33\u8154|\u6df7\u5408\u8154)$/, "")));
+  if (e.own) top.append(el("span", "reg reg-own", "\u81ea\u88dc"));
   const tools = el("span", "tools");
   if (e.au != null) tools.append(playBtn("word", e.au));
   tools.append(starBtn(e.k));
   top.append(tools);
   card.append(top);
-  if (e.variantOf) card.append(el("div", "note", "「" + e.h + "」的異用字"));
+  if (e.variantOf) card.append(el("div", "note", "\u300c" + e.h + "\u300d\u7684\u7570\u7528\u5b57"));
   if (e.others.length) {
     const o = el("div", "oth");
     for (const x of e.others) {
       const it = el("span", "othi");
-      it.append(el("span", "othl", x.label || "又"), el("span", "rom sm", x.rom), el("span", "zy sm", x.zy));
+      it.append(el("span", "othl", x.label || "\u53c8"), el("span", "rom sm", x.rom), el("span", "zy sm", x.zy));
       o.append(it);
     }
     card.append(o);
   }
   if (!e.defs.length) {
-    card.append(el("div", "none", e.type === "臺華共同" ? "臺華共同詞：意思跟華語一樣。" : "辭典沒有這個讀音的釋義。"));
+    card.append(el("div", "none", e.type === "\u81fa\u83ef\u5171\u540c" ? "\u81fa\u83ef\u5171\u540c\u8a5e\uff1a\u610f\u601d\u8ddf\u83ef\u8a9e\u4e00\u6a23\u3002" : "\u8fad\u5178\u6c92\u6709\u9019\u500b\u8b80\u97f3\u7684\u91cb\u7fa9\u3002"));
     links(card, e.syn, e.ant);
     return card;
   }
@@ -420,7 +420,7 @@ function entryCard(e, open) {
   card.append(list);
   links(card, e.syn, e.ant);
   if (!open) {
-    const more = el("button", "more", "顯示例句");
+    const more = el("button", "more", "\u986f\u793a\u4f8b\u53e5");
     more.type = "button";
     more.addEventListener("click", ev => { ev.stopPropagation(); card.classList.add("open"); more.remove(); });
     card.append(more);
@@ -428,14 +428,14 @@ function entryCard(e, open) {
   return card;
 }
 
-// 近義 / 反義 words
+// \u8fd1\u7fa9 / \u53cd\u7fa9 words
 function links(box, syn, ant) {
-  for (const [name, list] of [["近", syn], ["反", ant]]) {
+  for (const [name, list] of [["\u8fd1", syn], ["\u53cd", ant]]) {
     if (!list || !list.length) continue;
     const row = el("div", "lnk");
     row.append(el("span", "lnkl", name));
     list.slice(0, 8).forEach((x, i) => {
-      if (i) row.append("、");
+      if (i) row.append("\u3001");
       const w = el("span", "lnkw", x.h);
       if (x.rom) w.title = x.rom;
       row.append(w);
