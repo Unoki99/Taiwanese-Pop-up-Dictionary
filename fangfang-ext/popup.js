@@ -10,6 +10,7 @@ function paint(s) {
   document.querySelectorAll("#rom button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.rom === s.settings.rom)));
   $("count").textContent = new Set(s.saved.map(k => k.split("\t").slice(0, 2).join("\t"))).size;
   $("audio-base").value = s.settings.audioBase;
+  $("place").value = s.settings.place == null ? "" : String(s.settings.place);
   const v = Math.round((s.settings.volume ?? 0.4) * 100);
   $("volume").value = v; $("vol-n").textContent = v + "%";
 }
@@ -34,5 +35,14 @@ $("audio-base").addEventListener("change", async () => {
 $("open-saved").addEventListener("click", () => {
   api.tabs.create({ url: api.runtime.getURL("saved.html") });
   window.close();
+});
+send({ type: "places" }).then(places => {
+  if (!Array.isArray(places)) return;
+  places.forEach((p, i) => { const o = document.createElement("option"); o.value = String(i); o.textContent = p; $("place").append(o); });
+  refresh();
+});
+$("place").addEventListener("change", async () => {
+  const v = $("place").value;
+  await send({ type: "settings", settings: { place: v === "" ? null : +v } }); refresh();
 });
 refresh();

@@ -1,3 +1,90 @@
+// 方方 core: reading the shared dictionary data (data.json v2) the same way everywhere.
+// A word is identified by its key "漢字\tcodes" (codes = the 通行 reading as anchor syllable codes).
+// place = null for 通行, or 0–9 for one of the 10 places in data.places.
+function FangCore(d) {
+  const SYL = d.syl, TL = d.tl || {}, PJ = d.pj || {};
+  const DIA = d.dia || {}, TOK = d.tok || {}, ALT = d.alt || {};
+  const isCode = t => Object.prototype.hasOwnProperty.call(SYL, t);
+
+  // one syllable in a script: lat (皓羅) / tl (台羅) / poj (白話字) / zy (方音)
+  function syl(c, sys, place) {
+    const s = SYL[c];
+    if (!s) return c;
+    if (sys === "zy") {
+      // with a place chosen, Tâi-lô o is ㄛ (ㄜ is kept for or / er there)
+      return place != null && c.includes("ø") ? s[0].replace("ㄜ", "ㄛ") : s[0];
+    }
+    if (sys === "tl") return TL[c] ? TL[c][0] : s[1];
+    if (sys === "poj") return PJ[c] || s[1];
+    return s[1];
+  }
+
+  // the reading of a word in a dialect (codes string)
+  function codesFor(key, place) {
+    if (place != null && DIA[key] && DIA[key][place]) return DIA[key][place];
+    return key.slice(key.indexOf("\t") + 1);
+  }
+
+  // tokens (codes plus separators: "--" light tone, "_" space, punctuation, "^" capital)
+  function tokensFor(key, place, codes) {
+    const cs = (codes || codesFor(key, place)).split(" ").filter(Boolean);
+    const base = TOK[key];
+    if (!base) return cs;
+    let i = 0;
+    const out = base.split(" ").map(t => {
+      const cap = t[0] === "^", c = cap ? t.slice(1) : t;
+      if (!isCode(c)) return t;
+      const n = cs[i++] || c;
+      return (cap ? "^" : "") + n;
+    });
+    return out;
+  }
+
+  function render(tokens, sys, place) {
+    let out = "", prevCode = false;
+    for (const t of tokens) {
+      const cap = t[0] === "^", c = cap ? t.slice(1) : t;
+      if (isCode(c)) {
+        if (sys !== "zy" && prevCode) out += "-";
+        let s = syl(c, sys, place);
+        if (cap && sys !== "zy") s = s.charAt(0).toUpperCase() + s.slice(1);
+        out += s; prevCode = true;
+      } else if (t === "--") { if (sys !== "zy") out += "--"; prevCode = false; }
+      else if (t === "_") { out += " "; prevCode = false; }
+      else if (t[0] === "~") { out += t.slice(1); prevCode = false; }
+      else { out += t; prevCode = false; }
+    }
+    return out;
+  }
+
+  // a whole word in a script, for a dialect
+  const word = (key, sys, place) => render(tokensFor(key, place), sys, place);
+  // a plain codes string (no word key), e.g. an alternative reading
+  const codes = (cs, sys, place, tokens) => render(tokens ? tokens.split(" ") : cs.split(" ").filter(Boolean), sys, place);
+
+  // example sentence template "{^code}…"
+  const sentence = (tpl, sys) => tpl.replace(/\{(\^?)([^}]+)\}/g, (m, cap, c) => {
+    const s = isCode(c) ? syl(c, sys, null) : c;
+    return cap ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  });
+
+  // other readings of a word: alternatives (又 / 俗 / 合 / "/"), plus the 通行 reading when a dialect is shown
+  function others(key, place) {
+    const out = [];
+    const main = key.slice(key.indexOf("\t") + 1);
+    const shown = codesFor(key, place);
+    if (shown !== main) out.push({ codes: main, label: "通行", tokens: TOK[key] || null });
+    for (const [c, label, tokens] of ALT[key] || []) {
+      if (c === shown) continue;
+      out.push({ codes: c, label: label || "", tokens: tokens || null });
+    }
+    return out;
+  }
+
+  return { syl, codesFor, tokensFor, render, word, codes, sentence, others, isCode };
+}
+if (typeof module !== "undefined") module.exports = FangCore;
+
 // 方方 popup dictionary: background script.
 // Holds the dictionary (too big for the page script on iOS), answers lookups,
 // and keeps saved words and settings in extension storage (shared by every tab).
@@ -12,78 +99,103 @@ function load() {
   loading = fetch(api.runtime.getURL("data.json"))
     .then(r => { if (!r.ok && r.status) throw new Error("data.json HTTP " + r.status); return r.json(); })
     .then(d => {
+      const F = FangCore(d);
       const hanMap = new Map();
       let maxLen = 1;
-      for (const [h, c] of d.words) {
+      const add = (h, k) => {
         const a = hanMap.get(h);
-        if (a) { if (!a.includes(c)) a.push(c); } else hanMap.set(h, [c]);
+        if (a) { if (!a.includes(k)) a.push(k); } else hanMap.set(h, [k]);
         maxLen = Math.max(maxLen, Array.from(h).length);
-      }
-      // single characters: 白 (colloquial) reading first, 文 (literary) last, as on the website
+      };
+      for (const [h, c] of d.words) add(h, h + "\t" + c);
+      // variant characters (異用字) find the same entries
+      for (const [v, keys] of Object.entries(d.var || {})) for (const k of keys) add(v, k);
+      // single characters: 白 (colloquial) reading first, 文 (literary) last
       const RANK = { "白": 0, "俗": 1, "": 2, "文": 3 };
       for (const [h, list] of hanMap) {
         if (Array.from(h).length === 1 && list.length > 1) {
-          list.sort((a, b) => RANK[d.reg[h + "\t" + a] || ""] - RANK[d.reg[h + "\t" + b] || ""]);
+          list.sort((a, b) => RANK[d.reg[a] || ""] - RANK[d.reg[b] || ""]);
         }
       }
-      DB = { d, hanMap, maxLen: Math.min(maxLen, 12), own: new Set(d.own || []) };
+      DB = { d, F, hanMap, maxLen: Math.min(maxLen, 12), own: new Set(d.own || []), sub: new Set(d.sub || []) };
       return DB;
     })
     .catch(e => { loading = null; throw new Error("字典載入失敗：" + (e && e.message || e)); });
   return loading;
 }
 
-const romOf = (d, c, sys) =>
-  (sys === "tl" && d.tl[c]) ? d.tl[c][0] : (sys === "poj" && d.pj[c]) ? d.pj[c] : d.syl[c][1];
-
-function romSentence(d, tpl, sys) {
-  return tpl.replace(/\{(\^?)([^}]+)\}/g, (m, cap, c) => {
-    const s = d.syl[c] ? romOf(d, c, sys) : c;
-    return cap ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  });
-}
+const TYPE_LABEL = { 1: "臺華共同", 3: "附錄" };
 
 function defCount(db, k) {
   const i = db.d.defs.m[k];
   return i === undefined ? 0 : db.d.defs.t[i].split("\n").length;
 }
 
-function entry(db, h, c, sys) {
-  const d = db.d, k = h + "\t" + c, codes = c.split(" ").filter(x => d.syl[x]);
+// a linked word (synonym / antonym) for display
+function linkInfo(db, k, sys, place) {
+  const h = k.split("\t")[0];
+  if (k.endsWith("\t")) return { h, rom: "" };
+  return { h, rom: db.F.word(k, sys, place), k };
+}
+
+function entry(db, k, sys, place) {
+  const d = db.d, F = db.F;
+  const h = k.slice(0, k.indexOf("\t"));
   const di = d.defs.m[k];
   const pos = (d.pos[k] || "").split("|");
+  const sy = d.sy[k] || {}, an = d.an[k] || {};
   const defs = di === undefined ? [] : d.defs.t[di].split("\n").map((line, i) => {
     const m = line.match(/^(\d+)\.\s*(.*)$/);
     const exs = (d.ex[k] && d.ex[k][i]) || [];
     return {
       n: m ? m[1] : "", text: m ? m[2] : line, pos: pos[i] || "",
-      ex: exs.map(([eh, tpl, zh, name]) => ({ h: eh, r: romSentence(d, tpl, sys), hl: romSentence(d, tpl, "lat"), zh, name })),
+      ex: exs.map(([eh, tpl, zh, name]) => ({ h: eh, r: F.sentence(tpl, sys), hl: F.sentence(tpl, "lat"), zh, name })),
+      syn: (sy[i] || []).map(x => linkInfo(db, x, sys, place)),
+      ant: (an[i] || []).map(x => linkInfo(db, x, sys, place)),
     };
   });
+  const shown = F.codesFor(k, place);
   return {
-    k, h, codes,
-    rom: codes.map(x => romOf(d, x, sys)).join("-"),
-    hl: codes.map(x => d.syl[x][1]).join("-"),
-    zy: codes.map(x => d.syl[x][0]).join(""),
-    reg: d.reg[k] || "", own: db.own.has(k),
+    k, h, codes: shown.split(" "),
+    rom: F.word(k, sys, place),
+    hl: F.word(k, "lat", place),
+    zy: F.word(k, "zy", place),
+    reg: d.reg[k] || "", own: db.own.has(k), sub: db.sub.has(k),
+    type: TYPE_LABEL[d.typ[k]] || "",
+    dialect: shown !== k.slice(k.indexOf("\t") + 1) ? d.places[place] : "",
+    others: F.others(k, place).map(o => {
+      const pl = o.label === "通行" ? null : place;          // the 通行 reading is shown with 通行 方音
+      return { label: o.label, rom: F.codes(o.codes, sys, pl, o.tokens), zy: F.codes(o.codes, "zy", pl, o.tokens) };
+    }),
     au: d.au[k] != null ? d.au[k] : null,
+    // whole-word links, minus those already shown under a meaning
+    syn: (sy.e || []).filter(x => !Object.keys(sy).some(i => i !== "e" && sy[i].includes(x))).map(x => linkInfo(db, x, sys, place)),
+    ant: (an.e || []).filter(x => !Object.keys(an).some(i => i !== "e" && an[i].includes(x))).map(x => linkInfo(db, x, sys, place)),
+    cats: (d.cat[k] || []).map(i => d.cats[i]),
     defs,
   };
 }
 
-async function lookup(text, sys) {
+async function lookup(text, sys, place) {
   const db = await load();
   const chars = Array.from(text);
-  const out = [];
+  const out = [], seen = new Set();
   for (let L = Math.min(db.maxLen, chars.length); L >= 1 && out.length < 8; L--) {
     const w = chars.slice(0, L).join("");
-    for (const c of db.hanMap.get(w) || []) out.push(entry(db, w, c, sys));
+    for (const k of db.hanMap.get(w) || []) {
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const e = entry(db, k, sys, place);
+      e.matchLen = L;
+      if (k.split("\t")[0] !== w) e.variantOf = k.split("\t")[0];
+      out.push(e);
+    }
   }
-  return { matchLen: out.length ? Array.from(out[0].h).length : 0, entries: out.slice(0, 8) };
+  return { matchLen: out.length ? out[0].matchLen : 0, entries: out.slice(0, 8) };
 }
 
 // ---------- storage ----------
-const DEFAULTS = { enabled: true, rom: "lat", volume: 0.4, audioBase: "https://unoki99.github.io/fangfang/" };
+const DEFAULTS = { enabled: true, rom: "lat", place: null, volume: 0.4, audioBase: "https://unoki99.github.io/fangfang/" };
 
 async function getAll() {
   const s = await api.storage.local.get(["saved", "settings"]);
@@ -143,21 +255,44 @@ async function mergeBackup(text) {
   return { added: words.size - before };
 }
 
-async function savedEntries(sys) {
+async function savedEntries(sys, place) {
   const db = await load();
   const { saved } = await getAll();
   const seen = new Set(), out = [];
+  const keys = new Set(db.d.words.map(([h, c]) => h + "\t" + c));
   for (const s of saved) {
     const k = s.split("\t").slice(0, 2).join("\t");
     if (seen.has(k)) continue;
     seen.add(k);
-    const [h, c] = k.split("\t");
-    if (!db.hanMap.has(h) || !c) continue;
-    const e = entry(db, h, c, sys);
+    if (!keys.has(k)) continue;
+    const e = entry(db, k, sys, place);
     e.only = saved.includes(k) ? null : savedDefs(saved, k);
     out.push(e);
   }
   return out;
+}
+
+async function handle(msg) {
+  const place = msg && msg.place != null && msg.place !== "" ? +msg.place : null;
+  switch (msg && msg.type) {
+    case "lookup": return lookup(String(msg.text || ""), msg.rom || "lat", place);
+    case "state": return getAll();
+    case "places": { const db = await load(); return db.d.places; }
+    case "settings": {
+      const { settings } = await getAll();
+      const next = Object.assign(settings, msg.settings || {});
+      await api.storage.local.set({ settings: next });
+      return next;
+    }
+    case "toggleWord": return { saved: await toggleWord(msg.k) };
+    case "toggleDef": return { saved: await toggleDef(msg.k, msg.i) };
+    case "savedEntries": return savedEntries(msg.rom || "lat", place);
+    case "setSaved": await setSaved(Array.isArray(msg.saved) ? msg.saved : []); return { ok: true };
+    case "import": return mergeBackup(String(msg.text || ""));
+    case "audio": return fetchAudio(String(msg.url || ""));
+    case "defCount": { const db = await load(); return defCount(db, msg.k); }
+    default: return null;
+  }
 }
 
 // audio is fetched here (extension origin) so a page's security rules can't block it
@@ -170,27 +305,6 @@ async function fetchAudio(url) {
     for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
     return { b64: btoa(bin) };
   } catch (e) { return { error: String(e) }; }
-}
-
-async function handle(msg) {
-  switch (msg && msg.type) {
-    case "lookup": return lookup(String(msg.text || ""), msg.rom || "lat");
-    case "state": return getAll();
-    case "settings": {
-      const { settings } = await getAll();
-      const next = Object.assign(settings, msg.settings || {});
-      await api.storage.local.set({ settings: next });
-      return next;
-    }
-    case "toggleWord": return { saved: await toggleWord(msg.k) };
-    case "toggleDef": return { saved: await toggleDef(msg.k, msg.i) };
-    case "savedEntries": return savedEntries(msg.rom || "lat");
-    case "setSaved": await setSaved(Array.isArray(msg.saved) ? msg.saved : []); return { ok: true };
-    case "import": return mergeBackup(String(msg.text || ""));
-    case "audio": return fetchAudio(String(msg.url || ""));
-    case "defCount": { const db = await load(); return defCount(db, msg.k); }
-    default: return null;
-  }
 }
 
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {

@@ -77,7 +77,7 @@ function card(e) {
 }
 async function load() {
   state = (await send({ type: "state" })) || state;
-  entries = (await send({ type: "savedEntries", rom: state.settings.rom })) || [];
+  entries = (await send({ type: "savedEntries", rom: state.settings.rom, place: state.settings.place })) || [];
   document.querySelectorAll("#rom button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.rom === state.settings.rom)));
   $("count").textContent = entries.length;
   ["csv-download", "csv-copy", "clear"].forEach(id => { $(id).disabled = !entries.length; });

@@ -141,7 +141,7 @@ async function lookupAt(x, y, anchor) {
   const id = ++reqId;
   let slow = 0;
   if (!dictReady) slow = setTimeout(() => { if (id === reqId) notice("字典載入中…", anchor); }, 400);
-  const res = await send({ type: "lookup", text, rom: settings.rom });
+  const res = await send({ type: "lookup", text, rom: settings.rom, place: settings.place });
   clearTimeout(slow);
   if (id !== reqId) return;
   if (!res || res.error) { notice("查詞出錯：" + (res ? res.error : "擴充功能沒有回應"), anchor); return; }
@@ -371,13 +371,30 @@ function entryCard(e, open) {
   const top = el("div", "top");
   top.append(el("span", "h", e.h), el("span", "rom", e.rom), el("span", "zy", e.zy));
   if (e.reg) top.append(el("span", "reg reg-" + (e.reg === "白" ? "b" : e.reg === "文" ? "m" : "s"), e.reg));
+  if (e.sub) { const s = el("span", "reg reg-s", "替"); s.title = "替代字：借用來寫這個詞的字"; top.append(s); }
+  if (e.type) top.append(el("span", "reg reg-t", e.type));
+  if (e.dialect) top.append(el("span", "reg reg-d", e.dialect.replace(/(偏泉腔|偏漳腔|混合腔)$/, "")));
   if (e.own) top.append(el("span", "reg reg-own", "自補"));
   const tools = el("span", "tools");
   if (e.au != null) tools.append(playBtn("word", e.au));
   tools.append(starBtn(e.k));
   top.append(tools);
   card.append(top);
-  if (!e.defs.length) { card.append(el("div", "none", "辭典沒有這個讀音的釋義。")); return card; }
+  if (e.variantOf) card.append(el("div", "note", "「" + e.h + "」的異用字"));
+  if (e.others.length) {
+    const o = el("div", "oth");
+    for (const x of e.others) {
+      const it = el("span", "othi");
+      it.append(el("span", "othl", x.label || "又"), el("span", "rom sm", x.rom), el("span", "zy sm", x.zy));
+      o.append(it);
+    }
+    card.append(o);
+  }
+  if (!e.defs.length) {
+    card.append(el("div", "none", e.type === "臺華共同" ? "臺華共同詞：意思跟華語一樣。" : "辭典沒有這個讀音的釋義。"));
+    links(card, e.syn, e.ant);
+    return card;
+  }
   const list = el("div", "defs");
   e.defs.forEach((d, i) => {
     const row = el("div", "def");
@@ -396,10 +413,12 @@ function entryCard(e, open) {
       }
       body.append(exs);
     }
+    links(body, d.syn, d.ant);
     row.append(body, starBtn(e.k, i));
     list.append(row);
   });
   card.append(list);
+  links(card, e.syn, e.ant);
   if (!open) {
     const more = el("button", "more", "顯示例句");
     more.type = "button";
@@ -407,6 +426,23 @@ function entryCard(e, open) {
     card.append(more);
   }
   return card;
+}
+
+// 近義 / 反義 words
+function links(box, syn, ant) {
+  for (const [name, list] of [["近", syn], ["反", ant]]) {
+    if (!list || !list.length) continue;
+    const row = el("div", "lnk");
+    row.append(el("span", "lnkl", name));
+    list.slice(0, 8).forEach((x, i) => {
+      if (i) row.append("、");
+      const w = el("span", "lnkw", x.h);
+      if (x.rom) w.title = x.rom;
+      row.append(w);
+      if (x.rom) row.append(el("span", "rom xs", x.rom));
+    });
+    box.append(row);
+  }
 }
 
 function STYLES() {
@@ -438,6 +474,16 @@ function STYLES() {
 .reg-m { background: var(--blue); color: var(--blue-ink); border: 1px solid var(--blue-edge); }
 .reg-s { background: var(--rust); color: var(--rust-ink); border: 1px solid var(--rust-edge); }
 .reg-own { background: var(--olive); color: var(--olive-ink); border: 1px solid var(--olive-edge); }
+.reg-t { background: var(--fn); color: var(--muted); border: 1px solid var(--fn-edge); }
+.reg-d { background: var(--purple); color: var(--purple-ink); border: 1px solid var(--purple-edge); }
+.oth { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.othi { display: inline-flex; align-items: baseline; gap: 6px; }
+.othl { font: 700 .66rem/1 var(--han); color: var(--olive-ink); background: var(--fn); border: 1px solid var(--olive-edge); border-radius: 5px; padding: 2px 4px; }
+.rom.sm { font-size: .9rem; } .zy.sm { font-size: .8rem; } .rom.xs { font-size: .78rem; margin-left: 4px; }
+.lnk { margin-top: 4px; font-size: .82rem; color: var(--muted); }
+.lnkl { font: 700 .66rem/1 var(--han); color: var(--blue-ink); background: var(--blue); border: 1px solid var(--blue-edge); border-radius: 5px; padding: 2px 4px; margin-right: 6px; }
+.lnkw { color: var(--glyph); }
+.note { font-size: .78rem; color: var(--muted); margin-top: 4px; }
 .defs { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 2px solid rgba(255,255,255,.08); }
 .def { display: flex; gap: 8px; align-items: flex-start; }
 .dn, .pos { flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--fn); border: 1px solid var(--key-edge); color: var(--olive-ink); font: 700 .7rem/1.2 system-ui, sans-serif; }

@@ -17,6 +17,7 @@
   .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--glyph); transition: left .15s; }
   .sw[aria-checked="true"] { background: var(--green-edge); }
   .sw[aria-checked="true"]::after { left: 21px; }
+  select { width: 100%; background: var(--key); color: var(--glyph); border: 2px solid var(--key-edge); border-radius: 10px; padding: 6px 10px; font: inherit; }
   input[type=range] { width: 100%; accent-color: var(--green-edge); }
   input[type=url] { width: 100%; background: var(--bg); border: 2px solid var(--fn-edge); border-radius: 10px; padding: 6px 10px; font-size: .8rem; }
 </style>
@@ -27,6 +28,10 @@
   <div class="row">
     <span class="lab">羅馬字</span>
     <div class="seg" id="rom"><button type="button" data-rom="lat">皓羅</button><button type="button" data-rom="tl">台羅</button><button type="button" data-rom="poj">白話字</button></div>
+  </div>
+  <div class="row">
+    <label class="lab" for="place">腔口</label>
+    <select id="place"><option value="">通行</option></select>
   </div>
   <div class="row">
     <span class="lab">音量 <span id="vol-n"></span></span>

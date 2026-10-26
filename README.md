@@ -14,7 +14,9 @@ Safari 的台語查詞擴充功能，適用 Mac、iPhone、iPad。外觀和 [方
 - **iPhone／iPad**：拖動畫面上的「方」圓圈，讓上方的小線指著文字。點一下「方」可以開關查詞。
 - **iPad 接觸控板或滑鼠**：跟 Mac 一樣，滑鼠移到漢字上就查詞。
 - **收藏**：☆ 收藏整個詞，釋義旁邊的 ☆ 只收藏那一個意思。
-- **工具列選單**：開關查詞、切換羅馬字（皓羅／台羅／白話字）、音量、打開收藏頁。
+- **工具列選單**：開關查詞、切換羅馬字（皓羅／台羅／白話字）、腔口（通行或 10 個地方）、音量、打開收藏頁。
+- **腔口**：選一個地方（例如高雄混合腔），有資料的詞會顯示那裡的讀音，方音的 ㄛ／ㄜ 也跟著調整。
+- **其他讀音、近反義詞、異用字**：查詞視窗會顯示又／俗／合讀音、近義詞和反義詞；異用字（例如「蜀」）也查得到。
 - **收藏頁**：下載 CSV（分號分隔，九欄）、備份匯出／匯入（跟網站同一個格式）。
 - 字典全部在擴充功能裡面，不用網路也能查。音檔從 `unoki99.github.io/fangfang` 播放。
 
@@ -156,10 +158,10 @@ tools/
 
 ## 資料來源與授權
 
-- **詞彙、讀音編碼**：YuRen-tw（Yu-Ren Pan）《rime-taigi-tps》 — [github.com/YuRen-tw/rime-taigi-tps](https://github.com/YuRen-tw/rime-taigi-tps)
-- **釋義、詞性、文白讀標示、例句**：教育部《臺灣台語常用詞辭典》 — [sutian.moe.edu.tw](https://sutian.moe.edu.tw/)
+- **詞條、讀音、釋義、詞性、文白讀、例句、近反義詞、異用字、腔口差異**：教育部《臺灣台語常用詞辭典》 — [sutian.moe.edu.tw](https://sutian.moe.edu.tw/)
   授權：[創用CC 姓名標示-禁止改作 3.0 臺灣](https://creativecommons.org/licenses/by-nd/3.0/tw/)。釋義原文照錄，僅擷取部分欄位顯示，未改動內容。
 - **讀音音檔**：教育部《臺灣台語常用詞辭典》詞條音檔，授權同上，原始音檔未經修改。
+- **音節編碼**：YuRen-tw（Yu-Ren Pan）《rime-taigi-tps》的拼音系統 — [github.com/YuRen-tw/rime-taigi-tps](https://github.com/YuRen-tw/rime-taigi-tps)
 - **單字常用度參考**：Rime《八股文》 — [github.com/rime/rime-essay](https://github.com/rime/rime-essay)
 - **皓羅拼寫系統**：Unoki99
 - **自補詞條**：標示「自補」的詞條及讀音為 Unoki99 自行補充，非教育部辭典內容。
