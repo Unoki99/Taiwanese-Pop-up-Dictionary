@@ -18,6 +18,10 @@ function send(msg) {
 let settings = { enabled: true, rom: "lat", volume: 0.4, audioBase: "https://unoki99.github.io/fangfang/" };
 let saved = [];
 const HAN = /[\p{Script=Han}\u3007]/u;
+// a character that can be part of a 台羅 / 白話字 word
+const LAT = /[\p{Script=Latin}\p{M}\u207f\u00b7\-0-9]/u;
+// …and a sign that it really is one (tone marks, ⁿ, o͘, a tone number, or syllables joined with -)
+const LAT_SIGN = /[\u0300-\u036f\u207f\u0358]|[a-z][1-9]\b|[a-z]-+[a-z]/i;
 const touchMode = matchMedia("(hover: none) and (pointer: coarse)").matches;
 
 // ---------- page-level styles: highlight of the matched characters + the \u7693\u7f85 font ----------
@@ -131,8 +135,39 @@ function notice(msg, anchor) {
   pop.append(n);
   place(new DOMRect(innerWidth / 2, innerHeight / 2, 0, 0), anchor);
 }
+// the 台羅 / 白話字 word around a point in a text node: { start, text }
+function latinWord(node, offset) {
+  const t = node.data;
+  let a = offset, b = offset;
+  while (a > 0 && LAT.test(t[a - 1])) a--;
+  while (b < t.length && LAT.test(t[b])) b++;
+  while (a < b && /[-0-9]/.test(t[a]) && !/[0-9]/.test(t[a])) a++;    // no leading hyphens
+  while (b > a && t[b - 1] === "-") b--;
+  const text = t.slice(a, b);
+  return text && LAT_SIGN.test(text.normalize("NFD")) ? { start: a, text } : null;
+}
+async function lookupLatAt(c, anchor) {
+  const w = latinWord(c.node, c.offset);
+  if (!w) { if (!anchor) scheduleHide(); return; }
+  const key = "lat:" + w.start + ":" + c.node.data.length + ":" + w.text;
+  if (key === shownKey && !pop.hidden) { cancelHide(); return; }
+  const id = ++reqId;
+  const res = await send({ type: "lookupLat", text: w.text, rom: settings.rom, place: settings.place });
+  if (id !== reqId) return;
+  if (!res || res.error || !res.entries || !res.entries.length) { if (!anchor) scheduleHide(); return; }
+  dictReady = true;
+  cancelHide();
+  shownKey = key;
+  const range = document.createRange();
+  range.setStart(c.node, w.start);
+  range.setEnd(c.node, Math.min(c.node.data.length, w.start + res.matchLen));
+  highlight(range);
+  renderPopup(res.entries);
+  place(range.getBoundingClientRect(), anchor);
+}
 async function lookupAt(x, y, anchor) {
   const c = charAt(x, y);
+  if (c && !HAN.test(c.ch) && LAT.test(c.ch) && c.ch !== "-") return lookupLatAt(c, anchor);
   if (!c || !HAN.test(c.ch)) { if (!anchor) scheduleHide(); return; }
   const key = c.offset + ":" + c.node.data.length + ":" + c.node.data.slice(c.offset, c.offset + 6);
   if (key === shownKey && !pop.hidden) { cancelHide(); return; }
@@ -364,16 +399,26 @@ function syncStars() { root.querySelectorAll(".star").forEach(syncStar); }
 
 function renderPopup(entries) {
   pop.textContent = "";
-  entries.forEach((e, n) => pop.append(entryCard(e, n === 0)));
+  entries.forEach(e => pop.append(entryCard(e, false)));     // every result starts short; 顯示例句 opens it
+}
+// a reading with the guessed syllables in red
+function pieces(cls, ps, plain) {
+  const s = el("span", cls);
+  if (!Array.isArray(ps) || !ps.length) { s.textContent = plain || ""; return s; }
+  for (const [t, g] of ps) {
+    if (g) s.append(el("span", "guess", t)); else s.append(document.createTextNode(t));
+  }
+  return s;
 }
 function entryCard(e, open) {
   const card = el("section", "ent" + (open ? " open" : ""));
   const top = el("div", "top");
-  top.append(el("span", "h", e.h), el("span", "rom", e.rom), el("span", "zy", e.zy));
+  top.append(el("span", "h", e.h), pieces("rom", e.romP, e.rom), pieces("zy", e.zyP, e.zy));
   if (e.reg) top.append(el("span", "reg reg-" + (e.reg === "\u767d" ? "b" : e.reg === "\u6587" ? "m" : "s"), e.reg));
   if (e.sub) { const s = el("span", "reg reg-s", "\u66ff"); s.title = "\u66ff\u4ee3\u5b57\uff1a\u501f\u7528\u4f86\u5beb\u9019\u500b\u8a5e\u7684\u5b57"; top.append(s); }
   if (e.type) top.append(el("span", "reg reg-t", e.type));
   if (e.dialect) top.append(el("span", "reg reg-d", e.dialect.replace(/(\u504f\u6cc9\u8154|\u504f\u6f33\u8154|\u6df7\u5408\u8154)$/, "")));
+  if (e.guess) { const g = el("span", "reg reg-t", "\u63a8\u6e2c"); g.title = "\u7d05\u8272\u7684\u8b80\u97f3\u662f\u4f9d\u898f\u5247\u63a8\u7b97\u7684\uff0c\u4e0d\u662f\u6559\u80b2\u90e8\u8fad\u5178\u7684\u8cc7\u6599"; top.append(g); }
   if (e.own) top.append(el("span", "reg reg-own", "\u81ea\u88dc"));
   const tools = el("span", "tools");
   if (e.au != null) tools.append(playBtn("word", e.au));
@@ -419,11 +464,21 @@ function entryCard(e, open) {
   });
   card.append(list);
   links(card, e.syn, e.ant);
-  if (!open) {
-    const more = el("button", "more", "\u986f\u793a\u4f8b\u53e5");
+  // 顯示例句 ↔ 收起 (open / close the example sentences)
+  if (e.defs.some(d => d.ex.length)) {
+    const more = el("button", "more", open ? "\u6536\u8d77" : "\u986f\u793a\u4f8b\u53e5");
     more.type = "button";
-    more.addEventListener("click", ev => { ev.stopPropagation(); card.classList.add("open"); more.remove(); });
+    const set = now => {
+      card.classList.toggle("open", now);
+      more.textContent = now ? "\u6536\u8d77" : "\u986f\u793a\u4f8b\u53e5";
+    };
+    more.addEventListener("click", ev => { ev.stopPropagation(); set(!card.classList.contains("open")); });
     card.append(more);
+    // also a 收起 at the top while the examples are open, so you don't have to scroll down to close them
+    const shut = el("button", "shut", "\u6536\u8d77");
+    shut.type = "button";
+    shut.addEventListener("click", ev => { ev.stopPropagation(); set(false); card.scrollIntoView({ block: "nearest" }); });
+    tools.prepend(shut);
   }
   return card;
 }
@@ -476,6 +531,7 @@ function STYLES() {
 .reg-own { background: var(--olive); color: var(--olive-ink); border: 1px solid var(--olive-edge); }
 .reg-t { background: var(--fn); color: var(--muted); border: 1px solid var(--fn-edge); }
 .reg-d { background: var(--purple); color: var(--purple-ink); border: 1px solid var(--purple-edge); }
+.guess { color: #ff7a6e; }
 .oth { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
 .othi { display: inline-flex; align-items: baseline; gap: 6px; }
 .othl { font: 700 .66rem/1 var(--han); color: var(--olive-ink); background: var(--fn); border: 1px solid var(--olive-edge); border-radius: 5px; padding: 2px 4px; }
@@ -492,6 +548,8 @@ function STYLES() {
 .dt { flex: 1; min-width: 0; }
 .exs { display: none; flex-direction: column; gap: 6px; margin: 6px 0 2px; }
 .ent.open .exs { display: flex; }
+.shut { display: none; background: none; border: 2px solid var(--fn-edge); border-radius: 10px; color: var(--muted); font: 700 .75rem var(--han); padding: 1px 8px; cursor: pointer; }
+.ent.open .shut { display: inline-block; }
 .exi { display: flex; gap: 8px; align-items: flex-start; }
 .ext { display: flex; flex-direction: column; min-width: 0; }
 .exh { color: var(--blue-ink); font-size: .9rem; }

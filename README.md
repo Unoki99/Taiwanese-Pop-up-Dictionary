@@ -13,12 +13,27 @@ Safari 的台語查詞擴充功能，適用 Mac、iPhone、iPad。外觀和 [方
 - **Mac**：把滑鼠移到漢字上，找到詞就自動跳出視窗。按 Esc 或移開滑鼠就關閉。
 - **iPhone／iPad**：拖動畫面上的「方」圓圈，讓上方的小線指著文字。點一下「方」可以開關查詞。
 - **iPad 接觸控板或滑鼠**：跟 Mac 一樣，滑鼠移到漢字上就查詞。
+- **台羅、白話字也查得到**：滑鼠移到（或「方」指到）有聲調符號的台羅或白話字上，例如 tsia̍h、khòaⁿ-bô、sì-kè，也會跳出同一個查詞視窗（用連字號連起來的音節當作一個詞）。沒有聲調符號的英文字不會跳出來。
 - **收藏**：☆ 收藏整個詞，釋義旁邊的 ☆ 只收藏那一個意思。
 - **工具列選單**：開關查詞、切換羅馬字（皓羅／台羅／白話字）、腔口（通行或 10 個地方）、音量、打開收藏頁。
 - **腔口**：選一個地方（例如高雄混合腔），有資料的詞會顯示那裡的讀音，方音的 ㄛ／ㄜ 也跟著調整。
 - **其他讀音、近反義詞、異用字**：查詞視窗會顯示又／俗／合讀音、近義詞和反義詞；異用字（例如「蜀」）也查得到。
 - **收藏頁**：下載 CSV（分號分隔，九欄）、備份匯出／匯入（跟網站同一個格式）。
 - 字典全部在擴充功能裡面，不用網路也能查。音檔從 `unoki99.github.io/fangfang` 播放。
+
+## 腔口讀音：歡迎指正 🙏
+
+選了腔口（鹿港、三峽、臺北、宜蘭、臺南、高雄、金門、馬公、新竹、臺中）之後顯示的讀音，**很多是推算出來的，不一定正確**：
+
+- 教育部辭典的「語音差異」只列了約 400 個常用字詞在各地的讀音。這些是辭典的資料。
+- 其他的詞（例如複合詞「白飯」「轉去」），是把單字的腔口讀音帶入用同一個讀音的詞推算的；例句裡的詞也是這樣換的。
+- 推算的讀音用**紅色**和「推測」標示（跟方方詞卡 App 一樣）。臺南、高雄的 o 唸 or（ㄜ）跟通行一樣，不算不同的讀音。
+
+有些推算一定會錯，例如一個字在某些詞裡保留不同的唸法、文讀和白讀拼法相同、或是一個地方本身就有兩種講法。
+
+**如果你是這些地方的人，或很熟悉當地的腔口**，非常歡迎告訴我們哪裡唸得不對、當地實際怎麼講。請到 [Issues](../../issues) 開一則，寫上：地方、詞（漢字）、App 顯示的讀音、當地的讀音（台羅或皓羅都可以），有例句更好。每一則回饋都很珍貴，謝謝！
+
+*Local readings: many of the readings shown for a chosen place are **educated guesses** (shown in red with 推測, as in the 方方詞卡 app), worked out from the ~400 words the MOE dictionary lists per place. If you are a native speaker of one of these varieties, corrections and comments are very welcome and much appreciated — please open an [issue](../../issues) with the place, the word, what the app shows and how it's said locally.*
 
 ## 需要的東西
 
@@ -162,7 +177,7 @@ tools/
 
 - **詞條、讀音、釋義、詞性、文白讀、例句、近反義詞、異用字、腔口差異、各地講法、人名姓氏讀音、華語對照詞**：教育部《臺灣台語常用詞辭典》 — [sutian.moe.edu.tw](https://sutian.moe.edu.tw/)
   授權：[創用CC 姓名標示-禁止改作 3.0 臺灣](https://creativecommons.org/licenses/by-nd/3.0/tw/)。釋義、例句原文照錄，僅擷取部分欄位顯示。讀音依規則由台羅轉成皓羅、方音、白話字顯示（`data.json` 裡存成音節編碼）。華語對照詞擷取自辭典的釋義與例句華語翻譯。
-- **推算的讀音**：辭典沒有直接寫出的部分腔口讀音，是依「/」並列讀音與加 r 的規則推算的，不是教育部的資料。
+- **推算的讀音**：辭典沒有直接寫出的部分腔口讀音，是依「/」並列讀音，以及單字的腔口讀音帶入同一個讀音的複合詞推算的，不是教育部的資料。
 - **讀音音檔**：教育部《臺灣台語常用詞辭典》詞條與例句音檔，授權同上，原始音檔未經修改，從方方網站讀取。
 - **音節編碼**：YuRen-tw（Yu-Ren Pan）《rime-taigi-tps》的拼音系統，經作者同意使用 — [github.com/YuRen-tw/rime-taigi-tps](https://github.com/YuRen-tw/rime-taigi-tps)
 - **單字常用度參考**：Rime《八股文》（LGPL-3.0） — [github.com/rime/rime-essay](https://github.com/rime/rime-essay)

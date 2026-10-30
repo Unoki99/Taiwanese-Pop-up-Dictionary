@@ -6,8 +6,13 @@
 <title>方方</title>
 <link rel="stylesheet" href="common.css">
 <style>
-  body { width: 300px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-  @media (max-width: 500px) { body { width: auto; } }
+  /* wide, with two settings next to each other on each row. The width follows the device's screen, not
+     the popup's own size (Safari sizes the popup from its content, so asking the popup made it narrow) */
+  body { width: 580px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  @media (max-device-width: 600px) { body { width: auto; } }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .seg button { padding-left: 4px; padding-right: 4px; }
   h1 { margin: 0; font-size: 1.4rem; }
   h1 small { font-size: .85rem; color: var(--muted); margin-left: 6px; }
   .row { display: flex; flex-direction: column; gap: 6px; }
@@ -23,21 +28,27 @@
 </style>
 </head>
 <body>
-  <h1>方方<small>台語查詞</small></h1>
-  <div class="toggle"><span id="on-label">查詞已開啟</span><button class="sw" id="enabled" role="switch" aria-checked="true" aria-label="開啟或關閉查詞"></button></div>
-  <div class="row">
-    <span class="lab">羅馬字</span>
-    <div class="seg" id="rom"><button type="button" data-rom="lat">皓羅</button><button type="button" data-rom="tl">台羅</button><button type="button" data-rom="poj">白話字</button></div>
-  </div>
-  <div class="row">
-    <label class="lab" for="place">腔口</label>
-    <select id="place"><option value="">通行</option></select>
-  </div>
-  <div class="row">
-    <span class="lab">音量 <span id="vol-n"></span></span>
-    <input type="range" id="volume" min="0" max="100" step="5" aria-label="音量">
+  <h1>方方<small>台語查詞</small><small id="ver"></small></h1>
+  <div class="grid">
+    <div class="row">
+      <span class="lab">查詞</span>
+      <div class="toggle"><span id="on-label">查詞已開啟</span><button class="sw" id="enabled" role="switch" aria-checked="true" aria-label="開啟或關閉查詞"></button></div>
+    </div>
+    <div class="row">
+      <span class="lab">羅馬字</span>
+      <div class="seg" id="rom"><button type="button" data-rom="lat">皓羅</button><button type="button" data-rom="tl">台羅</button><button type="button" data-rom="poj">白話字</button></div>
+    </div>
+    <div class="row">
+      <label class="lab" for="place">腔口</label>
+      <select id="place"><option value="">通行</option></select>
+    </div>
+    <div class="row">
+      <span class="lab">音量 <span id="vol-n"></span></span>
+      <input type="range" id="volume" min="0" max="100" step="5" aria-label="音量">
+    </div>
   </div>
   <button class="btn go" id="open-saved" type="button">收藏的詞（<span id="count">0</span>）</button>
+  <div class="grid" style="align-items: start">
   <details>
     <summary class="lab">音檔來源</summary>
     <p class="note">播放鍵會從這個網站讀取 audio/ 和 leku/ 資料夾。</p>
@@ -47,6 +58,7 @@
     <summary class="lab">資料來源</summary>
     <p class="note">詞條、讀音、釋義、例句、音檔：教育部《臺灣台語常用詞辭典》（創用CC 姓名標示-禁止改作 3.0 臺灣）。釋義、例句原文照錄，音檔未經修改；讀音依規則由台羅轉成皓羅、方音、白話字。辭典沒寫的部分腔口讀音是依規則推算的。音節編碼：YuRen-tw《rime-taigi-tps》。皓羅：Unoki99。字型：DejaVu Sans。本擴充功能與教育部無關。</p>
   </details>
+  </div>
   <p class="note">Mac：把滑鼠移到漢字上。iPhone／iPad：拖動頁面上的「方」到文字下面，點一下「方」可以開關。</p>
   <script src="popup.js"></script>
 </body>

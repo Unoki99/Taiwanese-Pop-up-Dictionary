@@ -46,3 +46,4 @@ $("place").addEventListener("change", async () => {
   await send({ type: "settings", settings: { place: v === "" ? null : +v } }); refresh();
 });
 refresh();
+try { $("ver").textContent = " v" + api.runtime.getManifest().version; } catch (e) {}

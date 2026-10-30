@@ -4,7 +4,29 @@
 function FangCore(d) {
   const SYL = d.syl, TL = d.tl || {}, PJ = d.pj || {};
   const DIA = d.dia || {}, TOK = d.tok || {}, ALT = d.alt || {};
+  const DIA2 = d.dia2 || {};   // other ways a place says the word
+  const OR_PLACES = new Set((d.places || []).map((n, i) => ["\u81fa\u5357", "\u9ad8\u96c4"].some(x => n.startsWith(x)) ? i : -1).filter(i => i >= 0));   // places where o is always \u311c
   const isCode = t => Object.prototype.hasOwnProperty.call(SYL, t);
+  const DEX = d.dex || {};     // places whose reading MOE states for the word (the others are worked out by rule)
+  const mainOf = key => key.slice(key.indexOf("\t") + 1);
+
+  // a local syllable that sounds like the \u901a\u884c one: in \u81fa\u5357 / \u9ad8\u96c4, o \u2192 or is how \u901a\u884c o is said too
+  const sameSound = (a, b, place) => a === b || (OR_PLACES.has(Number(place)) && a.replace(/\u00f8/g, "\u0275") === b);
+  // the place says the word differently from \u901a\u884c (not counting \u81fa\u5357/\u9ad8\u96c4 o \u2192 or)
+  function differs(key, place) {
+    if (place == null || !DIA[key] || !DIA[key][place]) return false;
+    const a = mainOf(key).split(" "), b = DIA[key][place].split(" ");
+    if (a.length !== b.length) return true;
+    return b.some((x, i) => !sameSound(a[i], x, place));
+  }
+  const stated = (key, place) => place != null && (DEX[key] || "").includes(String(place));
+  // syllables (by position) whose reading for the place is worked out by rule, not stated by MOE
+  function guessed(key, place) {
+    if (place == null || stated(key, place) || !DIA[key] || !DIA[key][place]) return new Set();
+    const a = mainOf(key).split(" "), b = DIA[key][place].split(" ");
+    if (a.length !== b.length) return new Set(b.map((_, i) => i));
+    return new Set(b.map((x, i) => sameSound(a[i], x, place) ? -1 : i).filter(i => i >= 0));
+  }
 
   // one syllable in a script: lat (\u7693\u7f85) / tl (\u53f0\u7f85) / poj (\u767d\u8a71\u5b57) / zy (\u65b9\u97f3)
   function syl(c, sys, place) {
@@ -12,7 +34,8 @@ function FangCore(d) {
     if (!s) return c;
     if (sys === "zy") {
       // with a place chosen, T\u00e2i-l\u00f4 o is \u311b (\u311c is kept for or / er there)
-      return place != null && c.includes("\u00f8") ? s[0].replace("\u311c", "\u311b") : s[0];
+      // (except \u81fa\u5357 and \u9ad8\u96c4, where o is always said \u311c)
+      return place != null && c.includes("\u00f8") && !OR_PLACES.has(Number(place)) ? s[0].replace("\u311c", "\u311b") : s[0];
     }
     if (sys === "tl") return TL[c] ? TL[c][0] : s[1];
     if (sys === "poj") return PJ[c] || s[1];
@@ -39,6 +62,27 @@ function FangCore(d) {
     });
     return out;
   }
+
+  // like render, as [text, guessed] pieces so guessed syllables can be shown in red
+  function renderPieces(tokens, sys, place, g) {
+    const out = [];
+    const put = (t, gu) => { if (!t) return; const l = out[out.length - 1]; if (l && l[1] === gu) l[0] += t; else out.push([t, gu]); };
+    let prevCode = false, n = 0;
+    for (const t of tokens) {
+      const cap = t[0] === "^", c = cap ? t.slice(1) : t;
+      if (isCode(c)) {
+        if (sys !== "zy" && prevCode) put("-", false);
+        let s = syl(c, sys, place);
+        if (cap && sys !== "zy") s = s.charAt(0).toUpperCase() + s.slice(1);
+        put(s, g.has(n)); n++; prevCode = true;
+      } else if (t === "--") { if (sys !== "zy") put("--", false); prevCode = false; }
+      else if (t === "_") { put(" ", false); prevCode = false; }
+      else if (t[0] === "~") { put(t.slice(1), false); prevCode = false; }
+      else { put(t, false); prevCode = false; }
+    }
+    return out;
+  }
+  const wordPieces = (key, sys, place) => renderPieces(tokensFor(key, place), sys, place, guessed(key, place));
 
   function render(tokens, sys, place) {
     let out = "", prevCode = false;
@@ -73,7 +117,9 @@ function FangCore(d) {
     const out = [];
     const main = key.slice(key.indexOf("\t") + 1);
     const shown = codesFor(key, place);
-    if (shown !== main) out.push({ codes: main, label: "\u901a\u884c", tokens: TOK[key] || null });
+    const also = place != null && DIA2[key] ? (DIA2[key][String(place)] || []) : [];
+    for (const c of also) if (c !== shown) out.push({ codes: c, label: "\u4e5f\u8b1b", tokens: null });
+    if (differs(key, place) && !also.includes(main)) out.push({ codes: main, label: "\u901a\u884c", tokens: TOK[key] || null });
     for (const [c, label, tokens] of ALT[key] || []) {
       if (c === shown) continue;
       out.push({ codes: c, label: label || "", tokens: tokens || null });
@@ -81,7 +127,7 @@ function FangCore(d) {
     return out;
   }
 
-  return { syl, codesFor, tokensFor, render, word, codes, sentence, others, isCode };
+  return { syl, codesFor, tokensFor, render, word, codes, sentence, others, isCode, differs, guessed, stated, wordPieces };
 }
 if (typeof module !== "undefined") module.exports = FangCore;
 
@@ -117,7 +163,18 @@ function load() {
           list.sort((a, b) => RANK[d.reg[a] || ""] - RANK[d.reg[b] || ""]);
         }
       }
-      DB = { d, F, hanMap, maxLen: Math.min(maxLen, 12), own: new Set(d.own || []), sub: new Set(d.sub || []) };
+      // 台羅 / 白話字: numbered 台羅 syllable (tsiah8) -> codes, and codes string -> words
+      const latMap = new Map();
+      for (const [c, v] of Object.entries(d.tl || {})) {
+        if (!v || v.length < 2) continue;
+        const a = latMap.get(v[1]);
+        if (a) { if (!a.includes(c)) a.push(c); } else latMap.set(v[1], [c]);
+      }
+      const codeMap = new Map();
+      const addC = (cs, k) => { const a = codeMap.get(cs); if (a) { if (!a.includes(k)) a.push(k); } else codeMap.set(cs, [k]); };
+      for (const [h, c] of d.words) addC(c, h + "\t" + c);
+      for (const [k, list] of Object.entries(d.alt || {})) for (const a of list) if (a && a[0]) addC(a[0].split(" ").filter(x => x !== "_").join(" "), k);
+      DB = { d, F, hanMap, latMap, codeMap, maxLen: Math.min(maxLen, 12), own: new Set(d.own || []), sub: new Set(d.sub || []) };
       return DB;
     })
     .catch(e => { loading = null; throw new Error("\u5b57\u5178\u8f09\u5165\u5931\u6557\uff1a" + (e && e.message || e)); });
@@ -158,11 +215,14 @@ function entry(db, k, sys, place) {
   return {
     k, h, codes: shown.split(" "),
     rom: F.word(k, sys, place),
+    romP: F.wordPieces(k, sys, place),          // with guessed syllables marked (shown in red)
+    zyP: F.wordPieces(k, "zy", place),
+    guess: F.guessed(k, place).size > 0,
     hl: F.word(k, "lat", place),
     zy: F.word(k, "zy", place),
     reg: d.reg[k] || "", own: db.own.has(k), sub: db.sub.has(k),
     type: TYPE_LABEL[d.typ[k]] || "",
-    dialect: shown !== k.slice(k.indexOf("\t") + 1) ? d.places[place] : "",
+    dialect: F.differs(k, place) ? d.places[place] : "",
     others: F.others(k, place).map(o => {
       const pl = o.label === "\u901a\u884c" ? null : place;          // the \u901a\u884c reading is shown with \u901a\u884c \u65b9\u97f3
       return { label: o.label, rom: F.codes(o.codes, sys, pl, o.tokens), zy: F.codes(o.codes, "zy", pl, o.tokens) };
@@ -174,6 +234,65 @@ function entry(db, k, sys, place) {
     cats: (d.cat[k] || []).map(i => d.cats[i]),
     defs,
   };
+}
+
+// ---------- 台羅 / 白話字 ----------
+const TONE_MARK = { "\u0301": 2, "\u0300": 3, "\u0302": 5, "\u030C": 6, "\u0306": 6, "\u0304": 7, "\u030D": 8, "\u030B": 9 };
+// one 台羅 or 白話字 syllable (with tone marks or a tone number) -> numbered 台羅 (tsiah8), or null
+function numberedTL(s0) {
+  let s = s0.normalize("NFD").toLowerCase();
+  let tone = 0;
+  const m = s.match(/([1-9])$/);
+  if (m) { tone = +m[1]; s = s.slice(0, -1); }
+  let letters = "";
+  for (const ch of s) {
+    if (TONE_MARK[ch]) { if (!tone) tone = TONE_MARK[ch]; }
+    else if (ch === "\u0358" || !/[\u0300-\u036f]/.test(ch)) letters += ch;
+  }
+  letters = letters.replace(/o\u0358/g, "oo").replace(/o\u00b7/g, "oo").replace(/\u207f/g, "nn");   // 白話字 o͘ / o· and ⁿ
+  if (!/^[a-z]+$/.test(letters)) return null;
+  // 白話字 spellings -> 台羅
+  letters = letters.replace(/^chh/, "tsh").replace(/^ch/, "ts").replace(/oa/g, "ua").replace(/oe/g, "ue")
+    .replace(/eng$/, "ing").replace(/ek$/, "ik");
+  if (!tone) tone = /[ptkh]$/.test(letters) ? 4 : 1;
+  return letters + tone;
+}
+
+// a 台羅 / 白話字 word (syllables joined with - or --): the longest dictionary words from its start
+async function lookupLat(text, sys, place) {
+  const db = await load();
+  const parts = [];                       // { syl, end } end = position in text after this syllable
+  const re = /[^-]+/g;
+  let m;
+  while ((m = re.exec(text))) parts.push({ syl: m[0], end: m.index + m[0].length });
+  const lists = [];
+  for (const p of parts) {
+    const n = numberedTL(p.syl);
+    const cs = n && db.latMap.get(n);
+    if (!cs) break;
+    lists.push(cs);
+  }
+  const out = [], seen = new Set();
+  let matchLen = 0;
+  for (let L = Math.min(lists.length, 8); L >= 1 && out.length < 8; L--) {
+    let combos = [[]];
+    for (const l of lists.slice(0, L)) {
+      const next = [];
+      for (const a of combos) for (const c of l) if (next.length < 32) next.push(a.concat(c));
+      combos = next;
+    }
+    for (const cs of combos) {
+      for (const k of db.codeMap.get(cs.join(" ")) || []) {
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const e = entry(db, k, sys, place);
+        e.matchLen = parts[L - 1].end;
+        out.push(e);
+        if (!matchLen) matchLen = e.matchLen;
+      }
+    }
+  }
+  return { matchLen, entries: out.slice(0, 8) };
 }
 
 async function lookup(text, sys, place) {
@@ -276,6 +395,7 @@ async function handle(msg) {
   const place = msg && msg.place != null && msg.place !== "" ? +msg.place : null;
   switch (msg && msg.type) {
     case "lookup": return lookup(String(msg.text || ""), msg.rom || "lat", place);
+    case "lookupLat": return lookupLat(String(msg.text || ""), msg.rom || "lat", place);
     case "state": return getAll();
     case "places": { const db = await load(); return db.d.places; }
     case "settings": {
